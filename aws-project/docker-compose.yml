@@ -1,0 +1,29 @@
+# Docker Compose file — defines how to run multiple services together
+# Version 3.8 is the most commonly used
+version: '3.8'
+
+services:
+  # Backend API service
+  backend:
+    build: ./services/backend
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - NODE_ENV=development
+      # This is how backend finds the events service
+      # "events" is the service name below — Docker creates DNS for it
+      - EVENTS_SERVICE_URL=http://events:3002
+    depends_on:
+      - events
+    restart: unless-stopped
+
+  # Events microservice
+  events:
+    build: ./services/events
+    ports:
+      - "3002:3002"
+    environment:
+      - PORT=3002
+      - NODE_ENV=development
+    restart: unless-stopped

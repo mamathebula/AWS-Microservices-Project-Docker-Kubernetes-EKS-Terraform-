@@ -1,0 +1,67 @@
+# Events Service — Deployment + Service
+# Replace <AWS_ACCOUNT_ID> with your actual AWS account ID
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: events-service
+  namespace: microservices
+  labels:
+    app: events-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: events-service
+  template:
+    metadata:
+      labels:
+        app: events-service
+    spec:
+      containers:
+        - name: events-service
+          image: <AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/microservices/events-service:latest
+          ports:
+            - containerPort: 3002
+          env:
+            - name: PORT
+              value: "3002"
+            - name: NODE_ENV
+              value: "production"
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3002
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3002
+            initialDelaySeconds: 5
+            periodSeconds: 10
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: events-service
+  namespace: microservices
+  labels:
+    app: events-service
+spec:
+  type: ClusterIP
+  selector:
+    app: events-service
+  ports:
+    - port: 3002
+      targetPort: 3002
+      protocol: TCP

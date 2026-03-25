@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Microservices Dashboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, sans-serif; background: #0f172a; color: #e2e8f0; padding: 2rem; }
+    h1 { color: #38bdf8; margin-bottom: 1rem; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; }
+    .card { background: #1e293b; border-radius: 8px; padding: 1.5rem; border: 1px solid #334155; }
+    .card h2 { color: #94a3b8; font-size: 0.875rem; text-transform: uppercase; margin-bottom: 0.5rem; }
+    .healthy { color: #4ade80; }
+    .unhealthy { color: #f87171; }
+    .event { background: #334155; padding: 0.75rem; border-radius: 4px; margin-bottom: 0.5rem; }
+    .event h3 { color: #38bdf8; font-size: 0.9rem; }
+    .event p { color: #94a3b8; font-size: 0.8rem; }
+    input, textarea { width: 100%; padding: 0.5rem; margin: 0.25rem 0; background: #334155; border: 1px solid #475569; border-radius: 4px; color: #e2e8f0; }
+    button { background: #2563eb; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; margin-top: 0.5rem; }
+    button:hover { background: #1d4ed8; }
+    #status { font-size: 1.2rem; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>Microservices Dashboard</h1>
+  <p>Frontend → Backend API → Events Service</p>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Backend Health</h2>
+      <p id="status">Checking...</p>
+      <p id="uptime"></p>
+    </div>
+    <div class="card">
+      <h2>Create Event</h2>
+      <input type="text" id="title" placeholder="Event title" />
+      <textarea id="desc" placeholder="Description" rows="2"></textarea>
+      <button onclick="createEvent()">Create Event</button>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top: 1rem;">
+    <h2>Events</h2>
+    <div id="events">Loading...</div>
+  </div>
+
+  <script>
+    const API = 'http://localhost:3001';
+
+    async function checkHealth() {
+      try {
+        const res = await fetch(`${API}/health`);
+        const data = await res.json();
+        document.getElementById('status').textContent = `● ${data.status}`;
+        document.getElementById('status').className = data.status === 'healthy' ? 'healthy' : 'unhealthy';
+        document.getElementById('uptime').textContent = `Uptime: ${Math.round(data.uptime)}s`;
+      } catch {
+        document.getElementById('status').textContent = '● Offline';
+        document.getElementById('status').className = 'unhealthy';
+      }
+    }
+
+    async function loadEvents() {
+      try {
+        const res = await fetch(`${API}/api/events`);
+        const data = await res.json();
+        const container = document.getElementById('events');
+        if (data.events && data.events.events) {
+          container.innerHTML = data.events.events.map(e =>
+            `<div class="event"><h3>${e.title}</h3><p>${e.description} — ${new Date(e.createdAt).toLocaleString()}</p></div>`
+          ).join('');
+        }
+      } catch {
+        document.getElementById('events').textContent = 'Could not load events';
+      }
+    }
+
+    async function createEvent() {
+      const title = document.getElementById('title').value;
+      const description = document.getElementById('desc').value;
+      if (!title) return alert('Title required');
+      await fetch('http://localhost:3002/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, description })
+      });
+      document.getElementById('title').value = '';
+      document.getElementById('desc').value = '';
+      loadEvents();
+    }
+
+    checkHealth();
+    loadEvents();
+    setInterval(checkHealth, 5000);
+  </script>
+</body>
+</html>

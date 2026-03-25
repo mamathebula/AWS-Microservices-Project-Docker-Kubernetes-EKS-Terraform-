@@ -1,0 +1,82 @@
+# Backend API — Deployment + Service
+# Replace <AWS_ACCOUNT_ID> with your actual AWS account ID
+
+---
+# Deployment — tells K8s to run 2 copies of the backend
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-api
+  namespace: microservices
+  labels:
+    app: backend-api
+spec:
+  replicas: 2  # Run 2 pods for high availability
+  selector:
+    matchLabels:
+      app: backend-api
+  template:
+    metadata:
+      labels:
+        app: backend-api
+    spec:
+      containers:
+        - name: backend-api
+          # Replace <AWS_ACCOUNT_ID> with your account ID
+          image: <AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/microservices/backend-api:latest
+          ports:
+            - containerPort: 3001
+
+          # Environment variables
+          env:
+            - name: PORT
+              value: "3001"
+            - name: NODE_ENV
+              value: "production"
+            # In K8s, services find each other by service name
+            - name: EVENTS_SERVICE_URL
+              value: "http://events-service:3002"
+
+          # Resource limits — prevent one pod from eating all resources
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+
+          # Liveness probe — K8s restarts the pod if this fails
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3001
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            failureThreshold: 3
+
+          # Readiness probe — K8s only sends traffic if this passes
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3001
+            initialDelaySeconds: 5
+            periodSeconds: 10
+
+---
+# Service — gives the backend pods a stable network address
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-api
+  namespace: microservices
+  labels:
+    app: backend-api
+spec:
+  type: ClusterIP  # Internal only (we'll add LoadBalancer/Ingress later)
+  selector:
+    app: backend-api  # Route traffic to pods with this label
+  ports:
+    - port: 3001        # Service port
+      targetPort: 3001  # Container port
+      protocol: TCP

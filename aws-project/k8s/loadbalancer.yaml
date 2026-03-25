@@ -1,0 +1,20 @@
+# LoadBalancer Service — exposes backend to the internet
+# AWS will create an ELB (Elastic Load Balancer) automatically
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-lb
+  namespace: microservices
+  labels:
+    app: backend-api
+  annotations:
+    # Use NLB (Network Load Balancer) instead of Classic LB
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+spec:
+  type: LoadBalancer
+  selector:
+    app: backend-api
+  ports:
+    - port: 3001
+      targetPort: 3001
+      protocol: TCP
